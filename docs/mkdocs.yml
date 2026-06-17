@@ -1,0 +1,55 @@
+site_name: django-pg-real-pool
+site_description: Django PostgreSQL backend that releases pooled connections As Soon As Possible
+site_url: https://spumer.github.io/django-pg-real-pool/
+
+repo_name: spumer/django-pg-real-pool
+repo_url: https://github.com/spumer/django-pg-real-pool
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Overview: index.md
+  - How it works: how-it-works.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - Compatibility: compatibility.md
+  - FAQ & limitations: faq.md

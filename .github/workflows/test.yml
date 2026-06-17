@@ -1,0 +1,100 @@
+name: Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync
+      - name: Ruff
+        run: uv run ruff check src tests
+      - name: Ruff format
+        run: uv run ruff format --check src tests
+      - name: Mypy
+        run: uv run mypy src
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        django-version: ["5.1", "5.2", "6.0"]
+        backend: ["native", "dj_db_conn_pool"]
+        exclude:
+          # Django 6.0 requires Python >= 3.12
+          - { python-version: "3.10", django-version: "6.0" }
+          - { python-version: "3.11", django-version: "6.0" }
+          # Django 5.1 supports Python up to 3.13
+          - { python-version: "3.14", django-version: "5.1" }
+
+    name: py${{ matrix.python-version }} · dj${{ matrix.django-version }} · ${{ matrix.backend }}
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: django_pg_real_pool
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Create environment
+        run: uv venv --python ${{ matrix.python-version }}
+
+      - name: Install package + pinned Django
+        run: |
+          uv pip install -e . \
+            "django==${{ matrix.django-version }}.*" \
+            "psycopg[binary,pool]>=3.1.8" \
+            pytest pytest-django "coverage[toml]"
+          if [ "${{ matrix.backend }}" = "dj_db_conn_pool" ]; then
+            uv pip install "django-db-connection-pool>=1.2.6"
+          fi
+
+      - name: Test
+        env:
+          DJANGO_PG_REAL_POOL_BACKEND: ${{ matrix.backend }}
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: django_pg_real_pool
+        run: uv run coverage run -m pytest
+
+      - name: Coverage report
+        run: uv run coverage xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: reports/coverage.xml
+          flags: py${{ matrix.python-version }}-dj${{ matrix.django-version }}-${{ matrix.backend }}
+        continue-on-error: true
